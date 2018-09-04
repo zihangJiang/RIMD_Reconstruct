@@ -151,7 +151,7 @@ void RIMD_Reconstruction::Reconstruction()
             if(fabs(energy-last_energy)<0.01)
                 break;
         }
-        if(/*fabs(energy-last_energy)<0.001||*/iter_times>10000)
+        if(/*fabs(energy-last_energy)<0.001||*/iter_times>1000)
             break;
 //        last_energy = energy;
         compute_local_step();
@@ -417,7 +417,7 @@ void RIMD_Reconstruction::compute_Ti(TriMesh::VertexHandle v_it, TriMesh::Vertex
     tp0 = ref_mesh_.point(v_it); tp1 = ref_mesh_.point(test_v);
     double scale=1.0;
     if(((tp0[0]-tp1[0])*(tp0[0]-tp1[0])+(tp0[1]-tp1[1])*(tp0[1]-tp1[1])+(tp0[2]-tp1[2])*(tp0[2]-tp1[2]))<0.01)
-        scale = 10000;
+        scale = 100;
 
     for(;veiter.is_valid();veiter++)
     {
