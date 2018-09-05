@@ -22,7 +22,7 @@ RIMD_Reconstruction::RIMD_Reconstruction()
 //    defor_mesh_.add_property(log_dRs);
 }
 
-void RIMD_Reconstruction::read_ref_mesh_from_file(const char *_filename)
+void RIMD_Reconstruction::read_ref_mesh_from_file(std::string _filename)
 {
     if(!OpenMesh::IO::read_mesh(ref_mesh_, _filename))
     {
@@ -32,7 +32,7 @@ void RIMD_Reconstruction::read_ref_mesh_from_file(const char *_filename)
     is_anchor.resize(ref_mesh_.n_vertices(),false);
 }
 
-void RIMD_Reconstruction::read_defor_mesh_from_file(const char *_filename)
+void RIMD_Reconstruction::read_defor_mesh_from_file(std::string _filename)
 {
     if(!OpenMesh::IO::read_mesh(defor_mesh_, _filename))
     {
@@ -90,7 +90,7 @@ void RIMD_Reconstruction::read_defor_mesh_from_file(const char *_filename)
 
 }
 
-void RIMD_Reconstruction::read_anchor_points_id(const char *_filename)
+void RIMD_Reconstruction::read_anchor_points_id(const char* _filename)
 {
     if(ref_mesh_.n_vertices()==0)
     {
@@ -159,7 +159,7 @@ void RIMD_Reconstruction::Reconstruction()
 
 }
 
-void RIMD_Reconstruction::InterlateRIMD(double t)
+void RIMD_Reconstruction::InterlateRIMD(double t, std::string _filename)
 {
     TriMesh::VertexIter v_it = ref_mesh_.vertices_begin();
     Eigen::Matrix3d iden = Eigen::Matrix3d::Identity();
@@ -178,22 +178,80 @@ void RIMD_Reconstruction::InterlateRIMD(double t)
         ref_mesh_.property(log_dRs,*he_it) = (1.0-t)*zero + t*logR;
     }
     check_RIMD_correct();
-}
 
-void RIMD_Reconstruction::LoadRIMD(std::string _filename)
-{
-    double rimd_feature[274932];
+    // Store S and logdR feature separately.
+    double S_feature[56994];
+    int v_num=0;
+    for(TriMesh::VertexIter v_it=ref_mesh_.vertices_begin(); v_it!=ref_mesh_.vertices_end(); v_it++)
+    {
+        Eigen::Matrix3d Scale = ref_mesh_.property(scaling_matrixs, *v_it);
+        //std::cout<<"Scale "<<Scale<<std::endl;
+        S_feature[v_num*6+0] = Scale(0,0);
+        S_feature[v_num*6+1] = Scale(0,1);
+        S_feature[v_num*6+2] = Scale(0,2);
+        S_feature[v_num*6+3] = Scale(1,1);
+        S_feature[v_num*6+4] = Scale(1,2);
+        S_feature[v_num*6+5] = Scale(2,2);
+        v_num++;
+    }
+
+    double logdR_feature[170946];
+    int half_edge_num=0;
+    for(TriMesh::HalfedgeIter h_it=ref_mesh_.halfedges_begin();h_it!=ref_mesh_.halfedges_end();h_it++)
+    {
+        Eigen::Matrix3d logdR = ref_mesh_.property(log_dRs,*h_it);
+        //std::cout<<"logdR "<<std::endl<<logdR<<std::endl;
+        logdR_feature[half_edge_num*3+0] = logdR(0,1);
+        logdR_feature[half_edge_num*3+1] = logdR(0,2);
+        logdR_feature[half_edge_num*3+2] = logdR(1,2);
+        half_edge_num++;
+    }
+
+    // Write out as binary file.
+    std::ofstream f(_filename,std::ios::binary);
+    if(!f)
+    {
+        std::cout << "创建文件失败" <<std::endl;
+        return;
+    }
+    f.write((char*)S_feature, 56994*sizeof(double));
+    f.write((char*)logdR_feature, 170946*sizeof(double));
+    f.close();
+
+    // Test
+    double read_out_data[227940];
     std::ifstream r(_filename, std::ios::binary);
     if(!r)
     {
         std::cout << "读取文件失败" <<std::endl;
         return;
     }
-    r.read((char*)rimd_feature,274932*sizeof(double));
+    r.read((char*)read_out_data,227940*sizeof(double));
+    for(int i = 0; i < 56994; i++){
+        if(read_out_data[i] - S_feature[i] > 0.001)
+            std::cout<<"Read-Write Error!"<<std::endl;
+    }
+    for(int i = 56994; i < 227940; i++){
+        if(read_out_data[i] - logdR_feature[i-56994] > 0.001)
+            std::cout<<"Read-Write Error!"<<std::endl;
+    }
+    f.close();
+}
+
+void RIMD_Reconstruction::LoadRIMD(std::string _filename)
+{
+    double rimd_feature[227940];
+    std::ifstream r(_filename, std::ios::binary);
+    if(!r)
+    {
+        std::cout << "读取文件失败" <<std::endl;
+        return;
+    }
+    r.read((char*)rimd_feature,227940*sizeof(double));
     int i=0;
     for(TriMesh::VertexIter v_it = ref_mesh_.vertices_begin();v_it!=ref_mesh_.vertices_end();v_it++){
         Eigen::Matrix3d Scale;
-        Scale(0, 0)=rimd_feature[i];
+        Scale(0, 0)=rimd_feature[i+0];
         Scale(0, 1)=rimd_feature[i+1];
         Scale(1, 0)=rimd_feature[i+1];
         Scale(0, 2)=rimd_feature[i+2];
@@ -210,8 +268,8 @@ void RIMD_Reconstruction::LoadRIMD(std::string _filename)
         logdR(0, 0)=0;
         logdR(1, 1)=0;
         logdR(2, 2)=0;
-        logdR(0, 1)=rimd_feature[i];
-        logdR(1, 0)=-rimd_feature[i];
+        logdR(0, 1)=rimd_feature[i+0];
+        logdR(1, 0)=-rimd_feature[i+0];
         logdR(0, 2)=rimd_feature[i+1];
         logdR(2, 0)=-rimd_feature[i+1];
         logdR(1, 2)=rimd_feature[i+2];

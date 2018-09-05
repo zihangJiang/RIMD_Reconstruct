@@ -9,13 +9,13 @@ class RIMD_Reconstruction
 {
 public:
     RIMD_Reconstruction();
-    void read_ref_mesh_from_file(const char* _filename);
-    void read_defor_mesh_from_file(const char* _filename);
+    void read_ref_mesh_from_file(std::string _filename);
+    void read_defor_mesh_from_file(std::string _filename);
     void read_anchor_points_id(const char* _filename);
     void Preprocess();
     void Reconstruction();
     // (1-t)ref + t defor
-    void InterlateRIMD(double t);
+    void InterlateRIMD(double t,std::string _filename);
     // Load RIMD feature from file
     void LoadRIMD(std::string _filename);
     void GetReconstructionMesh(TriMesh &mesh);
