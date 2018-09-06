@@ -38,10 +38,12 @@ int main(int argc, char *argv[])
     std::string ref_mesh_name="/home/chern/Data/Dog_new_expressions/1_new.obj";
     std::string def_mesh_head="/home/chern/Data/Dog_new_expressions/";
     std::string def_mesh_tail="_new.obj";
+    std::string reconstruct_mesh_tail="_reconstruct.obj";
     std::string data_tail=".dat";
     for(int i=1;i<48;i++){
         std::ostringstream oss_def_mesh_name;
         std::ostringstream oss_data_name;
+        std::ostringstream oss_reconstruct_mesh_name;
 
         oss_def_mesh_name<<def_mesh_head<<i<<def_mesh_tail;
         std::string def_mesh_name=oss_def_mesh_name.str();
@@ -49,12 +51,20 @@ int main(int argc, char *argv[])
         oss_data_name<<def_mesh_head<<i<<data_tail;
         std::string data_name=oss_data_name.str();
 
+        oss_reconstruct_mesh_name<<def_mesh_head<<i<<reconstruct_mesh_tail;
+        std::string reconstruct_mesh_name=oss_reconstruct_mesh_name.str();
+
         rimd_r.read_ref_mesh_from_file(ref_mesh_name);
         rimd_r.read_defor_mesh_from_file(def_mesh_name);
         rimd_r.read_anchor_points_id("/home/chern/Project/RIMD/RIMD_Reconstruct/one_anchor.txt");
         rimd_r.Preprocess();
-        rimd_r.InterlateRIMD(1.0, data_name);
-
+        //rimd_r.InterlateRIMD(1.0, data_name);
+        rimd_r.LoadRIMD(data_name);
+        rimd_r.Reconstruction();
+        TriMesh mesh;
+        rimd_r.GetReconstructionMesh(mesh);
+        OpenMesh::IO::write_mesh(mesh,reconstruct_mesh_name);
+        std::cout<<reconstruct_mesh_name<<" done! "<<std::endl;
     }
 
 //    TriMesh mesh;
